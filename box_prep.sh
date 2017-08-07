@@ -59,3 +59,28 @@ groupadd -g 54323 oper
 #groupadd -g 54330 racdba
 
 useradd -u 54321 -g oinstall -G dba,oper oracle
+
+# Set the oracle password
+#passwd oracle
+
+# Consider disabling libvirtd to make dnsmasq work
+# Make sure local IP address is configured for DNS on the interface
+# Make sure the IP addresses are entered in the /etc/hosts file
+systemctl disable libvirtd
+systemctl stop libvirtd
+systemctl kill libvirtd # (probably needed)
+systemctl enable dnsmasq
+systemctl start dnsmasq
+
+# Change SELinux to permissive
+sed -r -i.bak -e s/SELINUX=enforcing/SELINUX=permissive/g /etc/selinux/config
+
+# Stop and disable the firewall
+systemctl stop firewalld
+systemctl disable firewalld
+
+# Create the directories for the software install
+mkdir -p /u01/app/grid/product/12.2.0.1
+mkdir -p /u01/app/oracle/product/12.2.0.1/db_1
+chown -R oracle:oinstall /u01
+chmod -R 775 /u01/
