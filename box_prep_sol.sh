@@ -53,4 +53,4 @@ projadd -G oinstall -K "project.max-shm-memory=(priv,6g,deny)" user.grid
 projmod -sK "project.max-sem-nsems=(priv,512,deny)" user.grid
 projmod -sK "project.max-sem-ids=(priv,128,deny)" user.grid
 projmod -sK "project.max-shm-ids=(priv,128,deny)" user.grid
-projmod -sK "process.max-file-descriptor=(priv,65536,deny)" user.grid
+projmod -sK "process.max-file-descriptor=(basic,1025,deny),(priv,65536,deny)" user.grid
