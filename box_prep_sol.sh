@@ -4,7 +4,8 @@
 svcadm disable ndp
 
 # Install prerequisite group from IPS repo
-pkg set-publisher -G '*' -g https://pkg.oracle.com/solaris/beta -k /opt/apps/software/pkg.oracle.com.key.pem -c /opt/apps/software/pkg.oracle.com.certificate.pem solaris
+#pkg set-publisher -G '*' -g https://pkg.oracle.com/solaris/beta -k /opt/apps/software/pkg.oracle.com.key.pem -c /opt/apps/software/pkg.oracle.com.certificate.pem solaris
+pkg set-publisher -G '*' -g https://pkg.oracle.com/solaris/support -k /opt/apps/software/pkg.oracle.com.key.pem -c /opt/apps/software/pkg.oracle.com.certificate.pem solaris
 pkg install group/prerequisite/oracle/oracle-rdbms-server-12-1-preinstall
 
 # Prepare area for home directories
@@ -22,7 +23,9 @@ useradd -u 54321 -g oinstall -G dba,asmadmin,asmoper,asmdba -d /opt/apps/users/g
 useradd -u 54322 -g oinstall -G dba,asmdba -d /opt/apps/users/oracle -m oracle
 # Update passwd file for auto home entry (/home/grid)
 # Add to /etc/auto_home:
-# *       localhost:/opt/apps/users/&
+cat << EOF >> /etc/auto_home
+*       localhost:/opt/apps/users/&
+EOF
 
 # Add to grid user .profile:
 cat << EOF >> ~grid/.profile
@@ -51,15 +54,16 @@ ulimit -v unlimited
 EOF
 
 # Update swap to make it at least 4.5G
-zfs set volsize=4.5G rpool/swap
+zfs set volsize=6G rpool/swap
 
 # Create directories for install
-### mkdir -p /u01/app/grid
-### mkdir -p /u01/app/12.2.0.1/grid
-### Convert to ZFS
-zfs create -o mountpoint=/u01/app/12.2.0.1/grid rpool/grid_home
-zfs create -o mountpoint=/u01/app/grid rpool/grid_base
-zfs create -o mountpoint=/u01/app/oracle rpool/oracle_base
+zfs create -o mountpoint=/u01 rpool/u01
+mkdir -p /u01/app/grid
+mkdir -p /u01/app/12.2.0.1/grid
+# Full ZFS option
+#zfs create -o mountpoint=/u01/app/12.2.0.1/grid rpool/grid_home
+#zfs create -o mountpoint=/u01/app/grid rpool/grid_base
+#zfs create -o mountpoint=/u01/app/oracle rpool/oracle_base
 chown -R grid:oinstall /u01
 chown oracle:oinstall /u01/app/oracle
 chmod -R 775 /u01
@@ -71,9 +75,15 @@ projmod -sK "project.max-sem-ids=(priv,128,deny)" user.grid
 projmod -sK "project.max-shm-ids=(priv,128,deny)" user.grid
 projmod -sK "process.max-file-descriptor=(basic,1025,deny),(priv,65536,deny)" user.grid
 
-# 12.2 GA requires SCAN address to resolve in DNS.  Install dnsmasq to do this.
+# 12.2 GA requires SCAN address to resolve in DNS.  Install dnsmasq to do this from the hosts file.
 pkg install dnsmasq
-# Add localhost to /etc/resolv.conf
-# nameserver 127.0.0.1
+
+# Add localhost to /etc/resolv.conf as the first nameserver entry and update SMF
+/usr/gnu/bin/sed -i.bkp '/search/a nameserver\t127.0.0.1' /etc/resolv.conf
+nscfg import -f dns/client
+
 # Enable dnsmasq
 svcadm enable dnsmasq
+
+# chown grid:asmadmin on the ASM disks
+# chmod 660 on the ASM disks
